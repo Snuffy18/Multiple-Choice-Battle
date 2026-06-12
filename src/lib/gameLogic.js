@@ -30,6 +30,28 @@ export function isTimerExpired(turnStartedAt, timerSeconds) {
   return secondsRemaining(turnStartedAt, timerSeconds) <= 0;
 }
 
+// ─── XP calculation ───────────────────────────────────────────────────────────
+
+const GRACE_SECONDS = 3;   // full XP window at the start of each turn
+const MIN_XP_FRACTION = 0.2; // floor: never less than 20% of base XP
+
+/**
+ * Returns how much XP the player earns given how many seconds elapsed.
+ * 0–3s  → full baseXP
+ * 3s–end → linear decay down to 20% of baseXP
+ */
+export function timeScaledXP(baseXP, elapsedSeconds, timerSeconds) {
+  if (elapsedSeconds <= GRACE_SECONDS) return baseXP;
+  const decayRange = timerSeconds - GRACE_SECONDS;
+  if (decayRange <= 0) return baseXP;
+  const progress = Math.min(1, (elapsedSeconds - GRACE_SECONDS) / decayRange);
+  const fraction = 1 - progress * (1 - MIN_XP_FRACTION);
+  return Math.max(
+    Math.round(baseXP * MIN_XP_FRACTION),
+    Math.round(baseXP * fraction)
+  );
+}
+
 // ─── Answer processing ────────────────────────────────────────────────────────
 
 /**
@@ -49,7 +71,12 @@ export function processAnswer(room, playerId, chosen) {
   const question = questions[room.current_question_index];
 
   const correct = chosen !== null && chosen === question.correct_answer;
-  const xpDelta = correct ? (question.xp_reward ?? 100) : 0;
+  const elapsed = room.turn_started_at
+    ? (Date.now() - new Date(room.turn_started_at).getTime()) / 1000
+    : 0;
+  const xpDelta = correct
+    ? timeScaledXP(question.xp_reward ?? 100, elapsed, room.timer_seconds ?? 20)
+    : 0;
   const heartsDelta = correct ? 0 : -1;
 
   // Mutate the answering player's stats

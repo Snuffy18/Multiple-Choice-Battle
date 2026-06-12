@@ -151,7 +151,7 @@ export default function AdminQuestions() {
                 </h2>
                 <div className="flex gap-2">
                   <Button variant="sm" onClick={() => setAiImporting(true)}>
-                    ✨ AI Import
+                    Import
                   </Button>
                   <Button variant="sm" onClick={() => setAddingQuestion(true)}>
                     + Add
@@ -237,7 +237,7 @@ export default function AdminQuestions() {
 
       {/* AI import modal */}
       <Modal open={aiImporting} onClose={() => setAiImporting(false)}>
-        <h3 className="font-display font-bold text-xl text-offwhite mb-5">✨ AI Question Import</h3>
+        <h3 className="font-display font-bold text-xl text-offwhite mb-5">Import Questions</h3>
         {aiImporting && selectedBank && (
           <AIImport
             bank={selectedBank}
