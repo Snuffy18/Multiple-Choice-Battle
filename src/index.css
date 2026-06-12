@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Dark mode (default) ── */
+:root {
+  --color-navy:      8   8   8;    /* #080808 - page bg */
+  --color-card:      17  17  17;   /* #111111 - card bg */
+  --color-text:      240 240 240;  /* #F0F0F0 - primary text */
+  --color-muted:     90  90  90;   /* #5A5A5A - secondary text */
+  --color-accent:    232 232 232;  /* #E8E8E8 - accent (buttons, borders) */
+  --color-accent-dk: 160 160 160;  /* #A0A0A0 - accent hover */
+  --color-amber:     160 160 160;  /* #A0A0A0 - XP label */
+  --color-track:     35  35  35;   /* #232323 - timer ring track */
+}
+
+/* ── Light mode ── */
+html.light {
+  --color-navy:      250 250 250;  /* #FAFAFA - page bg */
+  --color-card:      255 255 255;  /* #FFFFFF - card bg */
+  --color-text:      10  10  10;   /* #0A0A0A - primary text */
+  --color-muted:     110 110 110;  /* #6E6E6E - secondary text */
+  --color-accent:    20  20  20;   /* #141414 - accent */
+  --color-accent-dk: 60  60  60;   /* #3C3C3C - accent hover */
+  --color-amber:     80  80  80;   /* #505050 - XP label */
+  --color-track:     215 215 215;  /* #D7D7D7 - timer ring track */
+}
+
+@layer base {
+  body {
+    @apply bg-navy text-offwhite font-body;
+    margin: 0;
+  }
+
+  #root {
+    min-height: 100svh;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Outfit', sans-serif;
+  }
+  .font-body {
+    font-family: 'Inter', sans-serif;
+  }
+}
