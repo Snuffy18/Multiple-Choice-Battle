@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { processAnswer, buildBattleStart, buildPlayAgain } from '../lib/gameLogic';
+import { processAnswer, processSimultaneousAnswer, buildBattleStart, buildPlayAgain } from '../lib/gameLogic';
 import { useRoom } from './useRoom';
 
 /**
@@ -9,6 +9,7 @@ import { useRoom } from './useRoom';
  */
 export function useGame(roomCode, localPlayerId) {
   const { room, loading, error, updateRoom } = useRoom(roomCode);
+  // keep roomCode stable for the simultaneous re-fetch callback
   const [submitting, setSubmitting] = useState(false);
   const [lastResult, setLastResult] = useState(null); // { correct, xpDelta, heartsDelta }
 
@@ -17,19 +18,30 @@ export function useGame(roomCode, localPlayerId) {
       if (!room || submitting) return;
       setSubmitting(true);
       try {
-        const { roomPatch, event, result } = processAnswer(room, localPlayerId, chosen);
-        setLastResult(result);
-
-        // Write event and room update in parallel
-        await Promise.all([
-          updateRoom(roomPatch),
-          supabase.from('game_events').insert(event),
-        ]);
+        if (room.mode === 'simultaneous') {
+          // Re-fetch to see if opponent already answered
+          const { data: freshRoom } = await supabase
+            .from('rooms').select('*').eq('id', roomCode).single();
+          const { roomPatch, event, result, bothAnswered } =
+            processSimultaneousAnswer(freshRoom ?? room, localPlayerId, chosen);
+          if (bothAnswered) setLastResult(result);
+          await Promise.all([
+            updateRoom(roomPatch),
+            supabase.from('game_events').insert(event),
+          ]);
+        } else {
+          const { roomPatch, event, result } = processAnswer(room, localPlayerId, chosen);
+          setLastResult(result);
+          await Promise.all([
+            updateRoom(roomPatch),
+            supabase.from('game_events').insert(event),
+          ]);
+        }
       } finally {
         setSubmitting(false);
       }
     },
-    [room, localPlayerId, submitting, updateRoom]
+    [room, roomCode, localPlayerId, submitting, updateRoom]
   );
 
   const startBattle = useCallback(

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import { PlayerPanel } from '../components/battle/PlayerPanel';
 import { QuestionCard } from '../components/battle/QuestionCard';
 import { TurnBanner } from '../components/battle/TurnBanner';
 import { ResultOverlay } from '../components/battle/ResultOverlay';
+import { playCorrect, playWrong, playTick, playUrgentTick, playBattleStart } from '../lib/sounds';
 
 export default function Battle() {
   const { code } = useParams();
@@ -46,6 +47,33 @@ export default function Battle() {
 
   const inRevealPhase = revealSecondsLeft > 0;
 
+  // Play battle-start sound once on mount
+  useEffect(() => { playBattleStart(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Play correct/wrong sound when a result arrives
+  useEffect(() => {
+    if (!lastResult) return;
+    if (lastResult.correct) playCorrect(); else playWrong();
+  }, [lastResult]);
+
+  // Play tick sounds when timer is low
+  const prevRemaining = useRef(null);
+  useEffect(() => {
+    if (inRevealPhase || !room) return;
+    // We derive remaining from the room's turn_started_at via QuestionCard's useTimer,
+    // but we can approximate it here for sound purposes
+    const ms = room.turn_started_at
+      ? new Date(room.turn_started_at).getTime() + (room.timer_seconds ?? 20) * 1000 - Date.now()
+      : null;
+    if (ms === null) return;
+    const secs = Math.ceil(ms / 1000);
+    if (prevRemaining.current !== secs) {
+      prevRemaining.current = secs;
+      if (secs <= 3 && secs > 0) playUrgentTick();
+      else if (secs <= 5 && secs > 3) playTick();
+    }
+  });
+
   // Redirect when finished
   useEffect(() => {
     if (room?.status === 'finished') navigate(`/room/${code}/result`);
@@ -75,7 +103,9 @@ export default function Battle() {
   const players = room.players ?? [];
   const localPlayer = players.find((p) => p.id === localId);
   const opponent = players.find((p) => p.id !== localId);
-  const isMyTurn = room.current_turn === localId;
+  const isSimultaneous = room.mode === 'simultaneous';
+  const isMyTurn = isSimultaneous ? true : room.current_turn === localId;
+  const hasAnsweredThisRound = isSimultaneous && !!(room.answers_this_round ?? {})[localId];
   const isAdmin = localId === room.admin_id;
   const activePlayer = players.find((p) => p.id === room.current_turn);
 
@@ -166,11 +196,16 @@ export default function Battle() {
             </div>
           );
         })()}
+        {isSimultaneous && hasAnsweredThisRound && !inRevealPhase && (
+          <div className="bg-slate-card border border-violet/20 rounded-xl px-5 py-2 text-center">
+            <p className="text-muted font-body text-sm">Waiting for opponent…</p>
+          </div>
+        )}
         <QuestionCard
           question={displayQuestion}
           turnStartedAt={room.turn_started_at}
           timerSeconds={room.timer_seconds}
-          isMyTurn={isMyTurn && !inRevealPhase}
+          isMyTurn={(isMyTurn && !inRevealPhase) && !(isSimultaneous && hasAnsweredThisRound)}
           selectedAnswer={displaySelectedAnswer}
           revealed={displayRevealed}
           onAnswer={handleAnswer}
@@ -184,6 +219,7 @@ export default function Battle() {
         activePlayerName={activePlayer?.username ?? ''}
         questionIndex={room.current_question_index}
         totalQuestions={questions.length}
+        simultaneous={isSimultaneous}
       />
 
       {/* Result overlay (1.5s flash) */}

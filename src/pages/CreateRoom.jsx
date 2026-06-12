@@ -15,6 +15,7 @@ export default function CreateRoom() {
     bankId: '',
     hearts: 3,
     timer: 20,
+    mode: 'turn',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -48,6 +49,7 @@ export default function CreateRoom() {
         admin_id: adminId,
         starting_hearts: Number(form.hearts),
         timer_seconds: Number(form.timer),
+        mode: form.mode,
         question_bank_id: form.bankId,
         players: [{ id: adminId, username: adminId, hearts: Number(form.hearts), xp: 0, isReady: false }],
         current_question_index: 0,
@@ -124,6 +126,31 @@ export default function CreateRoom() {
               value={form.timer}
               onChange={(e) => set('timer', e.target.value)}
             />
+          </div>
+
+          {/* Game mode */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm text-muted font-body">Game Mode</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: 'turn', label: 'Turn Based', desc: 'Players alternate questions' },
+                { value: 'simultaneous', label: 'Simultaneous', desc: 'Both answer at the same time' },
+              ].map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => set('mode', m.value)}
+                  className={`text-left px-4 py-3 rounded-xl border transition-colors font-body ${
+                    form.mode === m.value
+                      ? 'border-violet bg-violet/10 text-offwhite'
+                      : 'border-violet/20 bg-slate-card text-muted hover:border-violet/40'
+                  }`}
+                >
+                  <p className="font-semibold text-sm">{m.label}</p>
+                  <p className="text-xs mt-0.5 opacity-70">{m.desc}</p>
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && <p className="text-crimson text-sm">{error}</p>}

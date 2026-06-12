@@ -147,6 +147,99 @@ export function processAnswer(room, playerId, chosen) {
   return { roomPatch, event, result };
 }
 
+// ─── Simultaneous answer processing ──────────────────────────────────────────
+
+/**
+ * Simultaneous mode: both players answer independently.
+ * freshRoom is re-fetched from DB so we see the opponent's answer if they've submitted.
+ * Returns { roomPatch, event, result, bothAnswered }
+ */
+export function processSimultaneousAnswer(freshRoom, playerId, chosen) {
+  const players = structuredClone(freshRoom.players);
+  const questions = freshRoom.questions_snapshot;
+  const question = questions[freshRoom.current_question_index];
+  const elapsed = freshRoom.turn_started_at
+    ? (Date.now() - new Date(freshRoom.turn_started_at).getTime()) / 1000
+    : 0;
+
+  const existing = freshRoom.answers_this_round ?? {};
+  const allAnswers = { ...existing, [playerId]: { chosen: chosen ?? null, elapsed } };
+  const bothAnswered = players.length === 2 && players.every((p) => allAnswers[p.id] !== undefined);
+
+  const event = {
+    room_id: freshRoom.id,
+    player_id: playerId,
+    question_id: question.id,
+    chosen_answer: chosen,
+    correct: chosen !== null && chosen === question.correct_answer,
+    xp_delta: 0,
+    hearts_delta: 0,
+  };
+
+  if (!bothAnswered) {
+    return {
+      roomPatch: { answers_this_round: allAnswers },
+      event,
+      result: null,
+      bothAnswered: false,
+    };
+  }
+
+  // Both answered — compute stats for each player
+  const REVEAL_MS = 5000;
+  const lastAnswersMap = {};
+
+  for (const player of players) {
+    const entry = allAnswers[player.id];
+    const pChosen = entry?.chosen ?? null;
+    const pElapsed = entry?.elapsed ?? 0;
+    const correct = pChosen !== null && pChosen === question.correct_answer;
+    const xp = correct ? timeScaledXP(question.xp_reward ?? 100, pElapsed, freshRoom.timer_seconds ?? 20) : 0;
+    player.xp += xp;
+    if (!correct) player.hearts = Math.max(0, player.hearts - 1);
+    lastAnswersMap[player.id] = pChosen;
+  }
+
+  const isLastQuestion = freshRoom.current_question_index >= questions.length - 1;
+  const anyDead = players.some((p) => p.hearts <= 0);
+  let battleOver = anyDead || isLastQuestion;
+  let winnerId = null;
+
+  if (battleOver) {
+    const [p0, p1] = players;
+    if (p0.xp > p1.xp) winnerId = p0.id;
+    else if (p1.xp > p0.xp) winnerId = p1.id;
+  }
+
+  const nextIndex = battleOver ? freshRoom.current_question_index : freshRoom.current_question_index + 1;
+  const myChosen = allAnswers[playerId]?.chosen ?? null;
+  const myCorrect = myChosen !== null && myChosen === question.correct_answer;
+  const myXP = myCorrect ? timeScaledXP(question.xp_reward ?? 100, elapsed, freshRoom.timer_seconds ?? 20) : 0;
+
+  // Update event with final xp/hearts
+  event.correct = myCorrect;
+  event.xp_delta = myXP;
+  event.hearts_delta = myCorrect ? 0 : -1;
+
+  return {
+    roomPatch: {
+      players,
+      current_question_index: nextIndex,
+      turn_started_at: battleOver ? null : new Date(Date.now() + REVEAL_MS).toISOString(),
+      status: battleOver ? 'finished' : 'battle',
+      winner_id: winnerId,
+      answers_this_round: {},
+      last_answers: lastAnswersMap,
+      reveal_until: battleOver ? null : new Date(Date.now() + REVEAL_MS).toISOString(),
+      last_question_index: freshRoom.current_question_index,
+      last_chosen_answer: myChosen,
+    },
+    event,
+    result: { correct: myCorrect, xpDelta: myXP, heartsDelta: myCorrect ? 0 : -1, battleOver, winnerId },
+    bothAnswered: true,
+  };
+}
+
 // ─── Battle initialisation ────────────────────────────────────────────────────
 
 /**
@@ -162,17 +255,19 @@ export function buildBattleStart(room, questions) {
     xp: 0,
   }));
 
-  // First turn goes to the first player who joined (index 0)
+  const isSimultaneous = room.mode === 'simultaneous';
   const firstPlayer = players[0];
 
   return {
     status: 'battle',
     questions_snapshot: shuffled,
     players,
-    current_turn: firstPlayer.id,
+    current_turn: isSimultaneous ? null : firstPlayer.id,
     current_question_index: 0,
     turn_started_at: new Date().toISOString(),
     winner_id: null,
+    answers_this_round: {},
+    last_answers: {},
   };
 }
 

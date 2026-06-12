@@ -42,10 +42,14 @@ create table if not exists rooms (
   current_question_index integer not null default 0,
   turn_started_at        timestamptz,       -- server-stamped when turn begins
   winner_id              text,              -- set when status = 'finished'
-  -- Reveal phase: set on wrong answers so both players see the correct answer
-  reveal_until           timestamptz,          -- null when not in reveal phase
-  last_question_index    integer,              -- index of the question just answered
-  last_chosen_answer     text,                 -- what the player picked (null = timeout)
+  -- Reveal phase: set after every answer so both players see the correct answer
+  reveal_until           timestamptz,
+  last_question_index    integer,
+  last_chosen_answer     text,
+  -- Simultaneous mode
+  mode                   text not null default 'turn',   -- 'turn' | 'simultaneous'
+  answers_this_round     jsonb default '{}'::jsonb,      -- { [playerId]: { chosen, elapsed } }
+  last_answers           jsonb default '{}'::jsonb,      -- { [playerId]: chosen } for reveal
   created_at             timestamptz not null default now()
 );
 
