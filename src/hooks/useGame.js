@@ -47,6 +47,20 @@ export function useGame(roomCode, localPlayerId) {
     await updateRoom(patch);
   }, [room, updateRoom]);
 
+  const endBattle = useCallback(async () => {
+    if (!room) return;
+    const players = room.players ?? [];
+    const [p0, p1] = players;
+    let winnerId = null;
+    if (p0 && p1) {
+      if (p0.xp > p1.xp) winnerId = p0.id;
+      else if (p1.xp > p0.xp) winnerId = p1.id;
+      else if (p0.hearts > p1.hearts) winnerId = p0.id;
+      else if (p1.hearts > p0.hearts) winnerId = p1.id;
+    }
+    await updateRoom({ status: 'finished', winner_id: winnerId, current_turn: null });
+  }, [room, updateRoom]);
+
   const clearLastResult = useCallback(() => setLastResult(null), []);
 
   return {
@@ -59,6 +73,7 @@ export function useGame(roomCode, localPlayerId) {
     submitAnswer,
     startBattle,
     playAgain,
+    endBattle,
     updateRoom,
   };
 }

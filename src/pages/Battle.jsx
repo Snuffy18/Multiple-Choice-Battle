@@ -11,7 +11,7 @@ export default function Battle() {
   const navigate = useNavigate();
   const localId = sessionStorage.getItem(`player_id_${code}`) ?? '';
 
-  const { room, loading, error, submitting, lastResult, clearLastResult, submitAnswer } =
+  const { room, loading, error, submitting, lastResult, clearLastResult, submitAnswer, endBattle } =
     useGame(code, localId);
 
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -76,6 +76,7 @@ export default function Battle() {
   const localPlayer = players.find((p) => p.id === localId);
   const opponent = players.find((p) => p.id !== localId);
   const isMyTurn = room.current_turn === localId;
+  const isAdmin = localId === room.admin_id;
   const activePlayer = players.find((p) => p.id === room.current_turn);
 
   const questions = room.questions_snapshot ?? [];
@@ -118,6 +119,18 @@ export default function Battle() {
           <span className="text-xs text-muted font-body">
             {room.current_question_index + 1}/{questions.length}
           </span>
+          {isAdmin && (
+            <button
+              className="text-xs text-crimson hover:text-offwhite font-body mt-1 px-2 py-0.5 border border-crimson/30 hover:border-crimson rounded-lg transition-colors"
+              onClick={() => {
+                if (confirm('End the battle now? Winner is decided by current scores.')) {
+                  endBattle();
+                }
+              }}
+            >
+              End
+            </button>
+          )}
         </div>
 
         {/* Right player */}
