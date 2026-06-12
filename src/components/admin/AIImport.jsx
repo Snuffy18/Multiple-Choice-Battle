@@ -28,8 +28,11 @@ export function AIImport({ bank, onImported, onClose }) {
     const all = [];
     try {
       for (let i = 0; i < files.length; i++) {
-        setProgress(`Parsing ${files[i].name} (${i + 1}/${files.length})…`);
-        const qs = await parseQuestionsFromFile(files[i]);
+        const fileLabel = files.length > 1 ? ` (file ${i + 1}/${files.length})` : '';
+        setProgress(`Parsing ${files[i].name}${fileLabel}…`);
+        const qs = await parseQuestionsFromFile(files[i], (chunkMsg) =>
+          setProgress(`${files[i].name}${fileLabel} — ${chunkMsg}`)
+        );
         all.push(...qs);
       }
       setQuestions(all);

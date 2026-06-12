@@ -80,8 +80,8 @@ export function processAnswer(room, playerId, chosen) {
   }
 
   // ── Build the next turn ──────────────────────────────────────────────────
-  const REVEAL_MS = 6000; // how long to show the correct answer on wrong answers
-  const showReveal = !correct && !battleOver;
+  const REVEAL_MS = 5000; // how long both players see the answer before advancing
+  const showReveal = !battleOver;
 
   const opponent = players.find((p) => p.id !== playerId);
   const nextTurn = battleOver ? null : opponent?.id;

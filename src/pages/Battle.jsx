@@ -151,14 +151,21 @@ export default function Battle() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 gap-4">
-        {inRevealPhase && (
-          <div className="bg-slate-card border border-crimson/30 rounded-xl px-5 py-3 text-center animate-slide_in">
-            <p className="text-crimson font-display font-semibold text-sm">Wrong answer</p>
-            <p className="text-muted font-body text-xs mt-0.5">
-              Next question in <span className="text-offwhite font-semibold">{revealSecondsLeft}s</span>
-            </p>
-          </div>
-        )}
+        {inRevealPhase && (() => {
+          const revealQ = questions[room.last_question_index];
+          const wasCorrect = revealQ && room.last_chosen_answer !== null &&
+            room.last_chosen_answer === revealQ.correct_answer;
+          return (
+            <div className={`bg-slate-card border rounded-xl px-5 py-3 text-center animate-slide_in ${wasCorrect ? 'border-emerald/30' : 'border-crimson/30'}`}>
+              <p className={`font-display font-semibold text-sm ${wasCorrect ? 'text-emerald' : 'text-crimson'}`}>
+                {wasCorrect ? 'Correct!' : 'Wrong answer'}
+              </p>
+              <p className="text-muted font-body text-xs mt-0.5">
+                Next question in <span className="text-offwhite font-semibold">{revealSecondsLeft}s</span>
+              </p>
+            </div>
+          );
+        })()}
         <QuestionCard
           question={displayQuestion}
           turnStartedAt={room.turn_started_at}
