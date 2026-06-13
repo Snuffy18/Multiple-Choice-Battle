@@ -9,6 +9,30 @@ import { Card } from '../components/ui/Card';
 
 const REVEAL_MS = 3000;
 const STARTING_HEARTS = 3;
+const OPTION_FIELDS = { A: 'option_a', B: 'option_b', C: 'option_c', D: 'option_d' };
+
+function fisherYates(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function shuffleOptions(q) {
+  const keys = ['A', 'B', 'C', 'D'];
+  const opts = fisherYates(keys.map((k) => ({ origKey: k, text: q[OPTION_FIELDS[k]] })));
+  const newCorrect = keys[opts.findIndex((o) => o.origKey === q.correct_answer)];
+  return {
+    ...q,
+    option_a: opts[0].text,
+    option_b: opts[1].text,
+    option_c: opts[2].text,
+    option_d: opts[3].text,
+    correct_answer: newCorrect,
+  };
+}
 
 export default function Solo() {
   const navigate = useNavigate();
@@ -89,7 +113,7 @@ export default function Solo() {
     const { data } = await supabase
       .from('questions').select('*').eq('bank_id', bankId);
     if (!data || data.length === 0) { alert('This bank has no questions!'); return; }
-    const shuffled = [...data].sort(() => Math.random() - 0.5);
+    const shuffled = fisherYates(data).map(shuffleOptions);
     setQuestions(shuffled);
     setIndex(0);
     setHearts(STARTING_HEARTS);
@@ -116,7 +140,7 @@ export default function Solo() {
     setSelectedAnswer(chosen);
     setRevealed(true);
     setTotalXP((x) => x + earned);
-    setLog((l) => [...l, { correct, xp: earned }]);
+    setLog((l) => [...l, { correct, xp: earned, question: q, chosen: chosen ?? null }]);
 
     const newHearts = correct ? hearts : Math.max(0, hearts - 1);
     setHearts(newHearts);
@@ -256,8 +280,10 @@ export default function Solo() {
     grade === 'C' ? 'text-amber' :
     'text-crimson';
 
+  const wrongEntries = log.filter((e) => !e.correct);
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4 py-12">
+    <div className="min-h-screen flex flex-col items-center gap-6 px-4 py-12">
       <Card className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
         <div>
           <p className="text-muted font-body text-sm mb-1">Practice complete</p>
@@ -281,6 +307,50 @@ export default function Solo() {
           <Button variant="ghost" onClick={() => navigate('/')}>← Home</Button>
         </div>
       </Card>
+
+      {wrongEntries.length > 0 && (
+        <div className="w-full max-w-sm flex flex-col gap-3">
+          <h3 className="font-display font-bold text-base text-offwhite">
+            Review — {wrongEntries.length} wrong {wrongEntries.length === 1 ? 'answer' : 'answers'}
+          </h3>
+          {wrongEntries.map((entry, i) => {
+            const q = entry.question;
+            return (
+              <div key={i} className="bg-slate-card border border-violet/10 rounded-2xl p-4 flex flex-col gap-3">
+                <p className="font-body text-sm text-offwhite leading-snug">{q.text}</p>
+                <div className="flex flex-col gap-1.5">
+                  {['A', 'B', 'C', 'D'].map((key) => {
+                    const text = q[OPTION_FIELDS[key]];
+                    if (!text) return null;
+                    const isCorrect = key === q.correct_answer;
+                    const isChosen = key === entry.chosen;
+                    return (
+                      <div
+                        key={key}
+                        className={`flex items-start gap-2 px-3 py-2 rounded-xl text-xs font-body transition-colors ${
+                          isCorrect
+                            ? 'bg-emerald/10 border border-emerald/40 text-emerald'
+                            : isChosen
+                            ? 'bg-crimson/10 border border-crimson/40 text-crimson'
+                            : 'border border-violet/10 text-muted'
+                        }`}
+                      >
+                        <span className="font-semibold shrink-0">{key}.</span>
+                        <span>{text}</span>
+                        {isCorrect && <span className="ml-auto shrink-0">✓</span>}
+                        {isChosen && !isCorrect && <span className="ml-auto shrink-0">✗</span>}
+                      </div>
+                    );
+                  })}
+                  {entry.chosen === null && (
+                    <p className="text-xs text-muted font-body italic">Time ran out</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
