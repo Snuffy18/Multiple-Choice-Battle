@@ -18,19 +18,28 @@ export default function Home() {
       </div>
 
       {/* CTA */}
-      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-xs">
-        <Button
-          className="flex-1 py-4 text-lg"
-          onClick={() => navigate('/create')}
-        >
-          Create Battle
-        </Button>
+      <div className="flex flex-col gap-3 w-full max-w-xs">
+        <div className="flex gap-3">
+          <Button
+            className="flex-1 py-4 text-lg"
+            onClick={() => navigate('/create')}
+          >
+            Create Battle
+          </Button>
+          <Button
+            variant="secondary"
+            className="flex-1 py-4 text-lg"
+            onClick={() => navigate('/join')}
+          >
+            Join Battle
+          </Button>
+        </div>
         <Button
           variant="secondary"
-          className="flex-1 py-4 text-lg"
-          onClick={() => navigate('/join')}
+          className="w-full py-3"
+          onClick={() => navigate('/solo')}
         >
-          Join Battle
+          Solo Practice
         </Button>
       </div>
 
