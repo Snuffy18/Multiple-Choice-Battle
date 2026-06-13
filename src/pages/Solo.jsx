@@ -247,6 +247,7 @@ export default function Solo() {
             </div>
           )}
           <QuestionCard
+            key={index}
             question={question}
             turnStartedAt={turnStartedAt}
             timerSeconds={timerSeconds}
